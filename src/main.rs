@@ -1,105 +1,51 @@
-#![deny(warnings)]
-#![allow(non_snake_case)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+extern crate bellman;
+extern crate pairing;
+extern crate rand;
+use bellman::{Circuit, ConstraintSystem, SynthesisError};
+use pairing::{Engine, Field, PrimeField};
 
-extern crate reqwest;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
+mod cube; 
 
-use job_scheduler::{Job, JobScheduler};
-use std::time::Duration;
-
-use structopt::StructOpt;
-
-#[derive(StructOpt)]
-struct Cli {
-    _min: f32,
-    _symbol: String,
-}
-
-use reqwest::header::CONTENT_TYPE;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Constituent {
-    symbol: String,
-    original_price: f32,
-    weight: f32,
-    usd_price: f32,
-    exchange: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Data {
-    last: String,
-    instrument_id: String,
-    timestamp: String,
-    constituents: Vec<Constituent>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Infomation {
-    code: u8,
-    data: Data,
-    msg: String,
-    detailMsg: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Text {
-    content: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct At {
-    isAtAll: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Post {
-    msgtype: String,
-    text: Text,
-    at: At,
-}
-
-fn send_ding_talk(_price: f32) {
-    let new_text = Text { content: _price };
-    let new_at = At { isAtAll: true };
-
-    let new_post = Post {
-        msgtype: "text".into(),
-        text: new_text,
-        at: new_at,
+fn main(){
+    use pairing::bls12_381::{Bls12, Fr};
+    use rand::thread_rng;
+    use bellman::groth16::{
+        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof, Proof,
     };
-    let _value = reqwest::Client::new()
-        .post("url address")
-        .header(CONTENT_TYPE, "application/json")
-        .json(&new_post)
-        .send()
-        .expect("Sorry,The Chinese government had banned the website.");
-}
 
-fn main() {
-    let _args = Cli::from_args();
-    let mut sched = JobScheduler::new();
-    sched.add(Job::new("1/30 * * * * *".parse().unwrap(), || {
-        println!("I get executed every 30 seconds!");
-        let mut _url = String::new();
-        _url.push_str("https://www.okex.com/api/index/v3/");
-        _url.push_str(&_args._symbol);
-        _url.push_str("/constituents");
+    println!("Prove that I know x such that x^3 + x + 5 == 35.");
+    
+    let rng = &mut thread_rng();
+    
+    println!("Creating parameters...");
+    
+    // Create parameters for our circuit
+    let params = {
+        let c = cube::CubeDemo::<Bls12> {
+            x: None
+        };
 
-        let response = reqwest::get(&_url).unwrap().text().unwrap();
-        let infomation: Infomation = serde_json::from_str(&response).unwrap();
-        println!("Response is {:?}", infomation);
-        let _value = infomation.data.constituents.last().unwrap();
-        if _value.usd_price > _args._min {
-            println!("original_price is {}", _value.usd_price);
-            send_ding_talk(_value.usd_price);
-        }
-    }));
+        generate_random_parameters(c, rng).unwrap()
+    };
+    
+    // Prepare the verification key (for proof verification)
+    let pvk = prepare_verifying_key(&params.vk);
 
-    loop {
-        sched.tick();
-        std::thread::sleep(Duration::from_millis(500));
-    }
+    println!("Creating proofs...");
+    
+    // Create an instance of circuit
+    let c = cube::CubeDemo::<Bls12> {
+        x: Fr::from_str("3")
+    };
+    
+    // Create a groth16 proof with our parameters.
+    let proof = create_random_proof(c, &params, rng).unwrap();
+        
+    assert!(verify_proof(
+        &pvk,
+        &proof,
+        &[Fr::from_str("35").unwrap()]
+    ).unwrap());
 }
