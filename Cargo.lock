@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bellman-tutorial"
+name = "bellman-circuit"
 version = "0.1.0"
 dependencies = [
  "bellman",

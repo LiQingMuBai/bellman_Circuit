@@ -38,7 +38,7 @@ use self::bellman::groth16::{
 
 // demo circuit
 // proving that I know a such that a * 3 = 21
-pub struct MultiplyDemo<E: Engine> {
+pub struct AddDemo<E: Engine> {
     pub a: Option<E::Fr>,
     pub b: Option<E::Fr>,
     pub c: Option<E::Fr>
@@ -47,7 +47,7 @@ pub struct MultiplyDemo<E: Engine> {
 // create a demo circuit by using the `Circuit` trait which
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
-impl <E: Engine> Circuit<E> for MultiplyDemo<E> {
+impl <E: Engine> Circuit<E> for AddDemo<E> {
     fn synthesize<CS: ConstraintSystem<E>>(
         self, 
         cs: &mut CS
@@ -70,10 +70,9 @@ impl <E: Engine> Circuit<E> for MultiplyDemo<E> {
             self.c.ok_or(SynthesisError::AssignmentMissing)
         })?;
 
-        // a * b = c?
-
+        // a + b = c?
         cs.enforce(
-            || "mult",
+            || "add",
             |lc| lc + a,
             |lc| lc + b,
             |lc| lc + c
@@ -84,7 +83,7 @@ impl <E: Engine> Circuit<E> for MultiplyDemo<E> {
 }
 
 #[test]
-fn test_multiply(){
+fn test_add(){
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
     let rng = &mut thread_rng();
@@ -93,7 +92,7 @@ fn test_multiply(){
     
     // Create parameters for our circuit
     let params = {
-        let c = MultiplyDemo::<Bls12> {
+        let c = AddDemo::<Bls12> {
             a: None,
             // make option values as None for these variables, for paramgen
             // don't want to bake these nums into parameters
@@ -109,11 +108,11 @@ fn test_multiply(){
 
     println!("Creating proofs...");
     
-    let public_input = Fr::from_str("12");
+    let public_input = Fr::from_str("10");
     
     // Create an instance of circuit
-    let c = MultiplyDemo::<Bls12> {
-        a: Fr::from_str("4"),
+    let c = AddDemo::<Bls12> {
+        a: Fr::from_str("7"),
         // when creating instance here, pass in Some of actual variables you're using
         b: Fr::from_str("3"),
         c: public_input
